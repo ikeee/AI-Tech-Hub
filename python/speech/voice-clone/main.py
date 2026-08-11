@@ -31,8 +31,18 @@ def clone_voice(text: str, ref_wav: str, lang: str = "zh-cn", out_path: str = "o
     threads = int(os.environ.get("VC_THREADS", "6"))
     torch.set_num_threads(threads)
 
+    # 检测模型是否已缓存（下载目录），提示"加载"而非"下载"
+    from pathlib import Path
+    model_hint = "正在加载 XTTS-v2 模型（已缓存）…"
+    try:
+        cache = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "tts" / "tts_models--multilingual--multi-dataset--xtts_v2"
+        if not (cache / "model.pth").exists():
+            model_hint = "首次使用：正在下载 XTTS-v2 模型（约 1.8GB，请耐心等待）…"
+    except Exception:
+        pass
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"[1/3] 加载模型 (XTTS-v2, 设备: {device}, 线程: {threads}, 首次运行会自动下载 ~1.8GB 模型)...", flush=True)
+    print(f"[1/3] {model_hint} (设备: {device}, 线程: {threads})", flush=True)
     tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
 
     print(f"[2/3] 正在合成: {text!r} (语言: {lang})", flush=True)
