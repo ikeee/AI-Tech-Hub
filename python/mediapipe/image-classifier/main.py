@@ -1,42 +1,38 @@
-"""图像分类最简实现：基于 MediaPipe Tasks ImageClassifier。
+"""图像分类最简实现：基于 MediaPipe Tasks Image Classifier。
 
 使用方法：
     python main.py <图片路径>
 
-前置准备：
-    下载 efficientnet_lite0.tflite 模型文件并放置于本目录：
-    https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/latest/efficientnet_lite0.tflite
-
-依赖安装：pip install mediapipe
+输出：Top-5 分类结果（类别 + 置信度）。
+模型文件：public/model/mediapipe/models/efficientnet_lite0.tflite
 """
 
 import sys
+from pathlib import Path
 
 import mediapipe as mp
-from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
+MODEL_PATH = Path(__file__).resolve().parents[3] / "public" / "model" / "mediapipe" / "models" / "efficientnet_lite0.tflite"
 
 
 def classify(image_path: str) -> None:
-    """读取图片并分类，输出 Top-K 分类结果。"""
-    base_options = python.BaseOptions(model_asset_path="efficientnet_lite0.tflite")
     options = vision.ImageClassifierOptions(
-        base_options=base_options,
-        max_results=5,  # Top-K
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
+        max_results=5,
     )
 
     with vision.ImageClassifier.create_from_options(options) as classifier:
         image = mp.Image.create_from_file(image_path)
-        result = classifier.classify(image)
+        results = classifier.classify(image)
 
-        if not result.classifications:
+        if not results.classifications:
             print("无分类结果")
             return
 
-        top = result.classifications[0].categories
-        print(f"Top-{len(top)} 分类结果:")
-        for i, cat in enumerate(top, 1):
-            print(f"  {i}. {cat.category_name} (置信度={cat.score:.4f})")
+        for i, cat in enumerate(results.classifications[0].categories, 1):
+            print(f"{i}. {cat.category_name} ({cat.score:.3f})")
 
 
 if __name__ == "__main__":

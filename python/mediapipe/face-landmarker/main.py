@@ -1,43 +1,45 @@
-"""人脸 478 关键点检测最简实现：基于 MediaPipe Tasks FaceLandmarker。
+"""人脸关键点最简实现：基于 MediaPipe Tasks Face Landmarker。
 
 使用方法：
     python main.py <图片路径>
 
-前置准备：
-    下载 face_landmarker.task 模型文件并放置于本目录：
-    https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
-
-依赖安装：pip install mediapipe
+输出：每张人脸 478 个关键点（归一化坐标）以及前 5 个表情混合值。
+模型文件：public/model/mediapipe/models/face_landmarker.task
 """
 
 import sys
+from pathlib import Path
 
 import mediapipe as mp
-from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+
+MODEL_PATH = Path(__file__).resolve().parents[3] / "public" / "model" / "mediapipe" / "models" / "face_landmarker.task"
 
 
 def detect(image_path: str) -> None:
-    """读取图片并检测人脸 478 关键点，输出关键点数量。"""
-    base_options = python.BaseOptions(model_asset_path="face_landmarker.task")
     options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
         num_faces=1,
+        output_face_blendshapes=True,
     )
 
     with vision.FaceLandmarker.create_from_options(options) as landmarker:
         image = mp.Image.create_from_file(image_path)
-        result = landmarker.detect(image)
+        results = landmarker.detect(image)
 
-        if not result.face_landmarks:
+        if not results.face_landmarks:
             print("未检测到人脸")
             return
 
-        for i, face in enumerate(result.face_landmarks, 1):
-            print(f"人脸 {i}: 检测到 {len(face)} 个关键点")
-            # 仅展示前 3 个关键点
-            for j, lm in enumerate(face[:3], 1):
-                print(f"  点 {j}: x={lm.x:.4f} y={lm.y:.4f} z={lm.z:.4f}")
+        for i, landmarks in enumerate(results.face_landmarks, 1):
+            print(f"人脸 {i}: {len(landmarks)} 个关键点")
+            # 打印鼻尖（第 1 个点）坐标作示例
+            nose = landmarks[1]
+            print(f"  鼻尖: x={nose.x:.4f}, y={nose.y:.4f}, z={nose.z:.4f}")
+            if results.face_blendshapes and results.face_blendshapes[i - 1]:
+                top = sorted(results.face_blendshapes[i - 1], key=lambda b: b.score, reverse=True)[:5]
+                print("  表情混合值:", ", ".join(f"{b.category_name}={b.score:.3f}" for b in top))
 
 
 if __name__ == "__main__":

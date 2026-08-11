@@ -1,44 +1,40 @@
-"""人体姿态关键点检测最简实现：基于 MediaPipe Pose（Legacy Solutions）。
+"""姿态估计最简实现：基于 MediaPipe Tasks Pose Landmarker。
 
 使用方法：
     python main.py <图片路径>
 
-说明：
-- 使用 Legacy Solutions API，比 Tasks API 更简洁
-- 共检测 33 个关键点
-- 模型文件随 mediapipe 包内置，无需额外下载
-
-依赖安装：pip install mediapipe opencv-python
+输出：每人体 33 个姿态关键点（归一化坐标）。
+模型文件：public/model/mediapipe/models/pose_landmarker_lite.task
 """
 
 import sys
+from pathlib import Path
 
-import cv2
 import mediapipe as mp
+from mediapipe.tasks.python import vision
+
+MODEL_PATH = Path(__file__).resolve().parents[3] / "public" / "model" / "mediapipe" / "models" / "pose_landmarker_lite.task"
 
 
 def detect(image_path: str) -> None:
-    """读取图片并检测人体姿态，输出 33 个关键点坐标。"""
-    mp_pose = mp.solutions.pose
+    options = vision.PoseLandmarkerOptions(
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
+        num_poses=1,
+    )
 
-    with mp_pose.Pose(
-        static_image_mode=True,
-        model_complexity=1,  # 0=Lite, 1=Full, 2=Heavy
-        min_detection_confidence=0.5,
-    ) as pose:
-        image = cv2.imread(image_path)
-        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # BGR -> RGB
-        results = pose.process(rgb)
+    with vision.PoseLandmarker.create_from_options(options) as landmarker:
+        image = mp.Image.create_from_file(image_path)
+        results = landmarker.detect(image)
 
         if not results.pose_landmarks:
-            print("未检测到人体姿态")
+            print("未检测到人体")
             return
 
-        landmarks = results.pose_landmarks.landmark
-        print(f"检测到 {len(landmarks)} 个关键点:")
-        for i, lm in enumerate(landmarks):
-            print(f"  点 {i}: x={lm.x:.4f} y={lm.y:.4f} z={lm.z:.4f} "
-                  f"可见度={lm.visibility:.4f}")
+        for i, landmarks in enumerate(results.pose_landmarks, 1):
+            print(f"人体 {i}: {len(landmarks)} 个关键点")
+            nose = landmarks[0]
+            print(f"  鼻子: x={nose.x:.4f}, y={nose.y:.4f}, z={nose.z:.4f}")
 
 
 if __name__ == "__main__":

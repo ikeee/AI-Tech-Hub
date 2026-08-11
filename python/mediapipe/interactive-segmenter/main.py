@@ -1,50 +1,51 @@
-"""交互式分割最简实现：基于 MediaPipe Tasks InteractiveSegmenter。
+"""交互式分割最简实现：基于 MediaPipe Tasks Interactive Segmenter。
 
 使用方法：
-    python main.py <图片路径> <归一化x> <归一化y>
+    python main.py <图片路径> <点击x> <点击y> [输出目录]
 
-前置准备：
-    下载 magic_touch.tflite 模型文件并放置于本目录：
-    https://storage.googleapis.com/mediapipe-models/image_segmenter/magic_touch/float32/latest/magic_touch.tflite
-
-依赖安装：pip install mediapipe
+说明：点击图片上的目标点（归一化坐标 0-1），分割出该目标区域并保存掩码 PNG。
+模型文件：models/magic_touch.tflite（官方 float32 版，兼容 MediaPipe Python tasks）
 """
 
 import sys
+from pathlib import Path
 
+import numpy as np
+from PIL import Image as PILImage
 import mediapipe as mp
-from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components.containers.keypoint import NormalizedKeypoint
+from mediapipe.tasks.python.vision.interactive_segmenter import RegionOfInterest
+
+MODEL_PATH = Path(__file__).resolve().parent / "models" / "magic_touch.tflite"
 
 
-def segment(image_path: str, x: float, y: float) -> None:
-    """给定归一化坐标点，输出该位置目标的分割掩码。"""
-    base_options = python.BaseOptions(model_asset_path="magic_touch.tflite")
+def segment(image_path: str, x: float, y: float, output_dir: str = "output") -> None:
     options = vision.InteractiveSegmenterOptions(
-        base_options=base_options,
-        output_type=vision.InteractiveSegmenterOptions.OutputType.CATEGORY_MASK,
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        output_category_mask=True,
     )
 
     with vision.InteractiveSegmenter.create_from_options(options) as segmenter:
         image = mp.Image.create_from_file(image_path)
-        # 构造 Roi（Region of Interest），指定点击位置
-        roi = NormalizedKeypoint(x=x, y=y)
-        result = segmenter.segment(image, roi=roi)
+        roi = vision.InteractiveSegmenterRegionOfInterest(
+            format=RegionOfInterest.Format.KEYPOINT,
+            keypoint=NormalizedKeypoint(x=x, y=y),
+        )
+        results = segmenter.segment(image, roi)
 
-        mask = result.category_mask
-        if mask is None:
-            print("未生成掩码")
-            return
-
-        print(f"点击位置: ({x:.4f}, {y:.4f})")
-        print(f"输入图片尺寸: {image.width}x{image.height}")
-        print(f"掩码尺寸: {mask.width}x{mask.height}")
+        mask = results.category_mask.numpy_view().squeeze()
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        mask_img = PILImage.fromarray(((mask > 0) * 255).astype(np.uint8))
+        out_path = out_dir / f"{Path(image_path).stem}_interactive_mask.png"
+        mask_img.save(out_path)
+        print(f"掩码已保存: {out_path}（目标像素占比 {(mask == 1).mean():.1%}）")
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if len(args) < 3:
-        print("用法: python main.py <图片路径> <归一化x> <归一化y>")
+    if len(sys.argv) < 4:
+        print("用法: python main.py <图片路径> <点击x> <点击y> [输出目录]")
         sys.exit(1)
-    segment(args[0], float(args[1]), float(args[2]))
+    segment(sys.argv[1], float(sys.argv[2]), float(sys.argv[3]),
+            sys.argv[4] if len(sys.argv) > 4 else "output")

@@ -1,45 +1,43 @@
-"""图像前景分割最简实现：基于 MediaPipe Tasks ImageSegmenter。
+"""图像分割最简实现：基于 MediaPipe Tasks Image Segmenter。
 
 使用方法：
-    python main.py <图片路径>
+    python main.py <图片路径> [输出目录]
 
-前置准备：
-    下载 selfie_segmenter.tflite 模型文件并放置于本目录：
-    https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite
-
-依赖安装：pip install mediapipe
+说明：使用 selfie_segmenter 分割人像前景，将分类掩码保存为 PNG。
+模型文件：public/model/mediapipe/models/selfie_segmenter.tflite
 """
 
 import sys
+from pathlib import Path
 
+import numpy as np
+from PIL import Image as PILImage
 import mediapipe as mp
-from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+MODEL_PATH = Path(__file__).resolve().parents[3] / "public" / "model" / "mediapipe" / "models" / "selfie_segmenter.tflite"
 
-def segment(image_path: str) -> None:
-    """读取图片并分割前景，输出分割掩码信息。"""
-    base_options = python.BaseOptions(model_asset_path="selfie_segmenter.tflite")
+
+def segment(image_path: str, output_dir: str = "output") -> None:
     options = vision.ImageSegmenterOptions(
-        base_options=base_options,
-        output_type=vision.ImageSegmenterOptions.OutputType.CATEGORY_MASK,
+        base_options=mp.tasks.BaseOptions(model_asset_path=str(MODEL_PATH)),
+        running_mode=vision.RunningMode.IMAGE,
+        output_category_mask=True,
     )
 
     with vision.ImageSegmenter.create_from_options(options) as segmenter:
         image = mp.Image.create_from_file(image_path)
-        result = segmenter.segment(image)
+        results = segmenter.segment(image)
 
-        # CATEGORY_MASK 模式下返回单张分类掩码
-        mask = result.category_mask
-        if mask is None:
-            print("未生成掩码")
-            return
-
-        # mask 为 mp.Image，可通过 mask.numpy_view() 获取 ndarray
-        print(f"输入图片尺寸: {image.width}x{image.height}")
-        print(f"掩码尺寸: {mask.width}x{mask.height}")
-        print(f"掩码数据类型: {mask.numpy_view().dtype}")
+        mask = results.category_mask.numpy_view().squeeze()  # (H,W,1) -> HxW, 0=背景 255=前景
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        mask_img = PILImage.fromarray(((mask > 0) * 255).astype(np.uint8))
+        out_path = out_dir / f"{Path(image_path).stem}_mask.png"
+        mask_img.save(out_path)
+        print(f"掩码已保存: {out_path}（前景像素占比 {(mask == 1).mean():.1%}）")
 
 
 if __name__ == "__main__":
-    segment(sys.argv[1] if len(sys.argv) > 1 else "input.jpg")
+    segment(sys.argv[1] if len(sys.argv) > 1 else "input.jpg",
+            sys.argv[2] if len(sys.argv) > 2 else "output")
