@@ -1,0 +1,7 @@
+# 已验证组合: Windows + Python 3.11 + CPU
+# 先装 CPU 版 torch:
+#   pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+coqui-tts==0.27.5
+transformers>=4.57,<5
+pypinyin>=0.40.0
+soundfile>=0.12.0
