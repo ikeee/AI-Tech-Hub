@@ -1,0 +1,15 @@
+# 已验证组合: Windows + Python 3.11 + CPU
+# 先装 CPU 版 torch（避免 CUDA 大包）：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+realesrgan
+basicsr
+facexlib
+opencv-python-headless
+pillow
+numpy
+# CodeFormer 代码（本模块仓库无 setup.py，克隆到 repo/ 目录）：
+#   git clone --depth 1 https://github.com/sczhou/CodeFormer.git repo
+# 模型权重：
+#   python download_model.py

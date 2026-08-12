@@ -1,0 +1,11 @@
+# 已验证组合: Windows + Python 3.11 + CPU
+# 先装 CPU 版 torch（避免 CUDA 大包）：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+diffusers
+transformers
+accelerate
+safetensors
+pillow
+numpy
