@@ -38,6 +38,8 @@ def recognize(path: str) -> dict:
         "faces": len(faces),
         "dim": 512,
         "embeddings": [f.embedding.tolist() for f in faces],
+        "bboxes": [[float(v) for v in f.bbox] for f in faces],
+        "det_scores": [float(f.det_score) for f in faces],
     }
 
 
