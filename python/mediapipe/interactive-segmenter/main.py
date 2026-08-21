@@ -40,7 +40,7 @@ def segment(image_path: str, x: float, y: float, output_dir: str = "output") -> 
         mask_img = PILImage.fromarray(((mask > 0) * 255).astype(np.uint8))
         out_path = out_dir / f"{Path(image_path).stem}_interactive_mask.png"
         mask_img.save(out_path)
-        print(f"掩码已保存: {out_path}（目标像素占比 {(mask == 1).mean():.1%}）")
+        print(f"掩码已保存: {out_path}（目标像素占比 {(mask > 0).mean():.1%}）")
 
 
 if __name__ == "__main__":
