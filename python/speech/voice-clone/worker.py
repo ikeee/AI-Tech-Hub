@@ -25,6 +25,15 @@ def main() -> None:
         pass
 
     import torch
+    import torchaudio
+
+    # CPU 环境无 torchcodec（pip 版依赖 CUDA torch，且 CPU torchcodec 不兼容 FFmpeg 8）：
+    # torchaudio 默认后端会走 torchcodec 报错，这里显式切到 soundfile 后端。
+    try:
+        torchaudio.set_audio_backend("soundfile")
+    except Exception:
+        pass
+
     from TTS.api import TTS
 
     torch.set_num_threads(int(os.environ.get("VC_THREADS", "6")))
