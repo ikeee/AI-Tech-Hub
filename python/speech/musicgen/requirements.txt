@@ -1,4 +1,0 @@
-transformers
-soundfile
-torch
-torchaudio

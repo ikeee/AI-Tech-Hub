@@ -1,4 +1,0 @@
-deepfilternet
-soundfile
-numpy
-librosa
